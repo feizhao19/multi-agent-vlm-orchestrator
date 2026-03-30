@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -11,6 +12,7 @@ from multi_agent_vlm_orchestrator.config import (
     load_models_config,
     load_scripts_config,
 )
+from multi_agent_vlm_orchestrator.models import RunRequest
 from multi_agent_vlm_orchestrator.orchestrator import ExperimentRunner
 from multi_agent_vlm_orchestrator.registry import ModelRegistry, ScriptRegistry
 
@@ -73,6 +75,35 @@ def agent_command(
 ) -> None:
     system = AgentSystem.from_paths(models, scripts, output_path)
     response = system.handle(request)
+    logger.info("Intent: %s", response.intent)
+    logger.info(response.final_text)
+
+
+@app.command("supervisor-run")
+def supervisor_run(
+    script_id: str = typer.Option(..., help="Script identifier, for example script_001."),
+    prompt: str = typer.Option(..., help="User prompt to send through the script template."),
+    models: Path = typer.Option(..., exists=True, dir_okay=False),
+    scripts: Path = typer.Option(..., exists=True, dir_okay=False),
+    model_name: Optional[str] = typer.Option(
+        None,
+        help="Requested worker model. If omitted, the script preferred model is used.",
+    ),
+    output_path: Path = typer.Option(
+        Path("results/supervisor_run.jsonl"),
+        dir_okay=False,
+        help="Results file written by the supervisor dispatch.",
+    ),
+) -> None:
+    system = AgentSystem.from_paths(models, scripts, output_path)
+    response = system.handle_run_request(
+        RunRequest(
+            script_id=script_id,
+            prompt=prompt,
+            model_name=model_name,
+            output_path=str(output_path),
+        )
+    )
     logger.info("Intent: %s", response.intent)
     logger.info(response.final_text)
 

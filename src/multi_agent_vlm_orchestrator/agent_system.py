@@ -4,7 +4,13 @@ import json
 from pathlib import Path
 
 from multi_agent_vlm_orchestrator.config import load_models_config, load_scripts_config
-from multi_agent_vlm_orchestrator.models import AgentResponse, PlannerDecision, ToolOutput
+from multi_agent_vlm_orchestrator.models import (
+    AgentResponse,
+    PlannerDecision,
+    RunRequest,
+    ToolCall,
+    ToolOutput,
+)
 from multi_agent_vlm_orchestrator.planner import RuleBasedPlanner
 from multi_agent_vlm_orchestrator.registry import ModelRegistry, ScriptRegistry
 from multi_agent_vlm_orchestrator.tools import ToolContext, ToolRegistry
@@ -120,3 +126,27 @@ class AgentSystem:
         decision = self.router.route(request)
         outputs = self.execution_agent.run(decision)
         return self.response_agent.render(request, decision, outputs)
+
+    def handle_run_request(self, request: RunRequest) -> AgentResponse:
+        decision = PlannerDecision(
+            intent="run_experiment",
+            summary="Run the experiment against the user-selected worker model.",
+            tool_calls=[
+                ToolCall(
+                    tool_name="run_experiment",
+                    arguments={
+                        "name": request.run_name,
+                        "prompt": request.prompt,
+                        "script_ids": [request.script_id],
+                        "model_name": request.model_name,
+                        "output_path": request.output_path,
+                    },
+                )
+            ],
+        )
+        outputs = self.execution_agent.run(decision)
+        return self.response_agent.render(
+            f"structured run request for {request.script_id}",
+            decision,
+            outputs,
+        )

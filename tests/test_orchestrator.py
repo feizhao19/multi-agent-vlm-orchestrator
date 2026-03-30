@@ -52,6 +52,45 @@ class OrchestratorTests(unittest.TestCase):
         payload = json.loads(result_path.read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual(payload["script_id"], "script_001")
 
+    def test_runner_uses_experiment_model_override(self) -> None:
+        tmp_path = Path("results/test_tmp")
+        tmp_path.mkdir(parents=True, exist_ok=True)
+        result_path = tmp_path / "override_results.jsonl"
+
+        experiment = ExperimentConfig(
+            experiment=ExperimentInput(
+                name="test",
+                prompt="what is in the image?",
+                script_ids=["script_001"],
+                model_name="override",
+                output_path=str(result_path),
+            )
+        )
+        models = ModelsConfig(
+            models={
+                "mock": ModelProfile(backend="mock", model_id="mock/model"),
+                "override": ModelProfile(backend="mock", model_id="mock/override"),
+            }
+        )
+        scripts = ScriptsConfig(
+            scripts={
+                "script_001": ScriptDefinition(
+                    description="demo",
+                    preferred_model="mock",
+                    prompt_template="Answer this: {user_prompt}",
+                )
+            }
+        )
+        runner = ExperimentRunner(
+            experiment_config=experiment,
+            model_registry=ModelRegistry(models),
+            script_registry=ScriptRegistry(scripts),
+        )
+
+        results = runner.run()
+
+        self.assertEqual(results[0].model_name, "override")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -38,6 +38,7 @@ class ExperimentInput(BaseModel):
     name: str
     prompt: str
     script_ids: list[str] | None = None
+    model_name: str | None = None
     output_path: str = "results/latest_run.jsonl"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -104,3 +105,13 @@ class AgentResponse(BaseModel):
     planner_summary: str
     tool_outputs: list[ToolOutput] = Field(default_factory=list)
     final_text: str
+
+
+class RunRequest(BaseModel):
+    script_id: str
+    prompt: str
+    model_name: str | None = None
+    image_path: str | None = None
+    run_name: str = "supervisor_run"
+    output_path: str = "results/supervisor_run.jsonl"
+    metadata: dict[str, Any] = Field(default_factory=dict)

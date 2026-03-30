@@ -32,9 +32,10 @@ class ExperimentRunner:
         scripts = self.script_registry.select(experiment.script_ids)
         tasks: list[AgentTask] = []
         for script_id, script in scripts.items():
+            model_name = experiment.model_name or script.preferred_model
             task = AgentTask(
                 script_id=script_id,
-                model_name=script.preferred_model,
+                model_name=model_name,
                 prompt=_render_prompt(script.prompt_template, experiment.prompt),
                 image_path=Path(script.image_path) if script.image_path else None,
                 description=script.description,

@@ -57,12 +57,19 @@ def _tool_list_scripts(context: ToolContext, arguments: dict) -> ToolOutput:
 def _tool_run_experiment(context: ToolContext, arguments: dict) -> ToolOutput:
     prompt = arguments["prompt"]
     script_ids = arguments.get("script_ids")
+    model_name = arguments.get("model_name")
     output_path = Path(arguments.get("output_path", context.default_output_path))
+    if model_name is not None:
+        try:
+            context.model_registry.get(model_name)
+        except KeyError as exc:
+            return ToolOutput(tool_name="run_experiment", success=False, error=str(exc))
     experiment = ExperimentConfig(
         experiment=ExperimentInput(
             name=arguments.get("name", "agent_run"),
             prompt=prompt,
             script_ids=script_ids,
+            model_name=model_name,
             output_path=str(output_path),
             metadata={"request_source": "agent_system"},
         )
@@ -81,6 +88,7 @@ def _tool_run_experiment(context: ToolContext, arguments: dict) -> ToolOutput:
         content={
             "output_path": str(output_path),
             "requested_script_ids": script_ids,
+            "requested_model_name": model_name,
             "total_results": len(results),
             "successes": successes,
             "failures": failures,

@@ -6,6 +6,7 @@ from multi_agent_vlm_orchestrator.models import PlannerDecision, ToolCall
 
 
 SCRIPT_ID_PATTERN = re.compile(r"script[_\s-]?(\d+)", re.IGNORECASE)
+MODEL_PATTERN = re.compile(r"(?:with|use|using)\s+([a-zA-Z0-9._/-]+)")
 
 
 class RuleBasedPlanner:
@@ -47,8 +48,9 @@ class RuleBasedPlanner:
                     ToolCall(
                         tool_name="run_experiment",
                         arguments={
-                            "prompt": normalized,
+                            "prompt": self._extract_prompt(normalized),
                             "script_ids": self._extract_script_ids(normalized),
+                            "model_name": self._extract_model_name(normalized),
                         },
                     )
                 ],
@@ -63,3 +65,15 @@ class RuleBasedPlanner:
     def _extract_script_ids(self, request: str) -> list[str] | None:
         matches = [f"script_{int(match):03d}" for match in SCRIPT_ID_PATTERN.findall(request)]
         return matches or None
+
+    def _extract_model_name(self, request: str) -> str | None:
+        match = MODEL_PATTERN.search(request)
+        return match.group(1).strip(" .,:;") if match else None
+
+    def _extract_prompt(self, request: str) -> str:
+        lowered = request.lower()
+        marker = "on this prompt:"
+        if marker in lowered:
+            start = lowered.index(marker) + len(marker)
+            return request[start:].strip()
+        return request

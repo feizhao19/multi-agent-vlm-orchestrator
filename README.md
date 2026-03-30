@@ -1,30 +1,85 @@
 # Multi-Agent VLM Orchestrator
 
-`multi-agent-vlm-orchestrator` is an agent-oriented benchmark runner for Hugging Face vision-language
-models. It supports both direct batch execution and a higher-level agent entrypoint that
-interprets a natural-language request, selects tools, and triggers experiment runs.
+`multi-agent-vlm-orchestrator` is a multi-agent system for vision-language model evaluation and orchestration. A supervisor agent accepts a script request, routes it to the requested VLM worker agent, and returns the result through a consistent tool-based execution layer.
 
-## Agent structure
+## Overview
 
-- `IntentRouterAgent`: maps a user request to an intent such as `run_experiment` or `list_models`.
-- `ExecutionAgent`: executes tool calls against the script/model registry.
-- `ResponseAgent`: turns tool outputs into a final user-facing response.
-- `ExperimentRunner`: low-level runner used by the `run_experiment` tool.
-- `SubAgent`: binds one script to one preferred VLM profile.
-- `VLMClient`: backend adapter for Hugging Face model execution.
+- `1 Supervisor Agent`
+  Accepts `script_id`, `prompt`, and optional `model_name`, validates the request, and routes work to the correct VLM worker.
+- `N Worker Agents`
+  Each worker is bound to one unique VLM and runs inference through a backend adapter.
+- `Tool Layer`
+  Provides reusable actions such as `list_models`, `list_scripts`, `run_experiment`, and `summarize_results`.
+- `Execution Layer`
+  Handles script rendering, model loading, inference, and result writing.
 
-## Tools exposed to the agent
+This is the current routing contract:
 
-- `list_models`
-- `list_scripts`
-- `run_experiment`
-- `summarize_results`
+1. user sends `script_id`
+2. user sends `prompt`
+3. user may send `model_name`
+4. if `model_name` is present, the supervisor routes to that worker
+5. otherwise the supervisor falls back to the script's `preferred_model`
 
-The current planner is rule-based so the system works locally without an external LLM.
-The agent boundaries are explicit, so you can replace the planner later with LangGraph
-or a tool-calling LLM without changing the tool layer.
+## Architecture
 
-## Quick start
+```text
+User Request
+  -> Supervisor Agent
+  -> Worker Selection
+  -> VLM Worker Agent
+  -> Hugging Face Backend
+  -> Result Store
+```
+
+Current implementation components:
+
+- `IntentRouterAgent`
+- `ExecutionAgent`
+- `ResponseAgent`
+- `ExperimentRunner`
+- `SubAgent`
+- `VLMClient`
+
+The planner is currently rule-based. The system is intentionally structured so the planner can later be replaced by LangGraph or another tool-calling LLM layer without rewriting the worker execution path.
+
+## Tech Stack
+
+- `Python`
+- `Pydantic` for configs and structured request models
+- `Typer` for CLI entrypoints
+- `Hugging Face transformers` for local VLM inference
+- `JSON` and `JSONL` for configs and run outputs
+- `Conda` metadata in model profiles for future per-model environment routing
+
+## Request Modes
+
+Natural-language agent request:
+
+```bash
+PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli agent \
+  --request "run script 1 with qwen2-vl-2b on this prompt: describe the image" \
+  --models configs/models.json \
+  --scripts configs/scripts.json
+```
+
+Structured supervisor request:
+
+```bash
+PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli supervisor-run \
+  --script-id script_001 \
+  --model-name qwen2-vl-2b \
+  --prompt "describe the image" \
+  --models configs/models.json \
+  --scripts configs/scripts.json
+```
+
+Structured routing priority:
+
+1. `model_name` provided by the user
+2. `preferred_model` from `scripts.json`
+
+## Quick Start
 
 ```bash
 cd /home/larry5/project/multi-agent-vlm-orchestrator
@@ -35,13 +90,9 @@ PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli agent \
   --request "list models" \
   --models configs/models.json \
   --scripts configs/scripts.json
-PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli agent \
-  --request "run script 1 and script 3 on this prompt: describe the image" \
-  --models configs/models.json \
-  --scripts configs/scripts.json
 ```
 
-## Direct batch mode
+Direct batch mode is also available:
 
 ```bash
 PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli run \
@@ -50,21 +101,22 @@ PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli run \
   --scripts configs/scripts.json
 ```
 
-## Backends
+## Model Backends
 
-- `mock`: dry-run backend for pipeline testing
-- `transformers_local`: local Hugging Face execution through `transformers`
+- `mock`
+  Dry-run backend for pipeline validation
+- `transformers_local`
+  Local Hugging Face VLM execution through `transformers`
 
-Install local inference dependencies when you need real VLM execution:
+Install local model dependencies when you need real inference:
 
 ```bash
 uv sync --extra dev --extra local
 ```
 
-## Config model
+## Config Files
 
-`models.json` stores your preferred VLM profiles. `conda_env` is optional metadata for
-future per-model environment routing.
+`configs/models.json` defines the available VLM worker profiles:
 
 ```json
 {
@@ -82,7 +134,7 @@ future per-model environment routing.
 }
 ```
 
-`scripts.json` maps each script to its preferred model.
+`configs/scripts.json` maps scripts to their default model preferences:
 
 ```json
 {
@@ -96,7 +148,7 @@ future per-model environment routing.
 }
 ```
 
-## Tests
+## Testing
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -q
