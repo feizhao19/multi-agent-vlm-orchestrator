@@ -1,0 +1,1 @@
+{"script_id": "script_001", "model_name": "mock", "model_id": "mock/model", "backend": "mock", "response_text": "[mock:mock/model] script=script_001 prompt=Answer this: run script 1 on this prompt", "success": true, "error": null, "metadata": {"mode": "mock"}}

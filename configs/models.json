@@ -1,0 +1,32 @@
+{
+  "models": {
+    "mock-vlm": {
+      "provider": "huggingface",
+      "backend": "mock",
+      "model_id": "mock/mock-vlm",
+      "conda_env": "vlm-mock",
+      "device": "cpu",
+      "dtype": "float32",
+      "max_new_tokens": 64
+    },
+    "qwen2-vl-2b": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_id": "Qwen/Qwen2-VL-2B-Instruct",
+      "conda_env": "vlm-qwen",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "max_new_tokens": 256,
+      "system_prompt": "You are a careful vision-language evaluation assistant."
+    },
+    "idefics2-8b": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_id": "HuggingFaceM4/idefics2-8b",
+      "conda_env": "vlm-idefics",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "max_new_tokens": 256
+    }
+  }
+}

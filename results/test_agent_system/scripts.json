@@ -1,0 +1,1 @@
+{"scripts": {"script_001": {"description": "demo", "preferred_model": "mock", "prompt_template": "{user_prompt}"}}}

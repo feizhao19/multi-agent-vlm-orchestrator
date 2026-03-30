@@ -1,0 +1,12 @@
+{
+  "experiment": {
+    "name": "demo_run",
+    "prompt": "Describe the image and highlight any important visual evidence.",
+    "script_ids": ["script_001", "script_002", "script_003"],
+    "output_path": "results/demo_run.jsonl",
+    "metadata": {
+      "owner": "larry5",
+      "mode": "demo"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "scripts": {
+    "script_001": {
+      "description": "General image QA baseline",
+      "preferred_model": "mock-vlm",
+      "prompt_template": "You are the assigned evaluation sub-agent.\nUser prompt: {user_prompt}\nAnalyze the image carefully and provide the final answer.",
+      "image_path": "examples/sample_image.txt",
+      "tags": ["baseline"]
+    },
+    "script_002": {
+      "description": "OCR-oriented prompt script",
+      "preferred_model": "mock-vlm",
+      "prompt_template": "Read the image contents, extract any visible text, and answer:\n{user_prompt}",
+      "image_path": "examples/sample_image.txt",
+      "tags": ["ocr"]
+    },
+    "script_003": {
+      "description": "Chart interpretation script",
+      "preferred_model": "mock-vlm",
+      "prompt_template": "Inspect the chart or diagram in the image and answer:\n{user_prompt}",
+      "image_path": "examples/sample_image.txt",
+      "tags": ["chart"]
+    }
+  }
+}
