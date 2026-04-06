@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from multi_agent_vlm_orchestrator.models import ModelProfile, ModelsConfig, ScriptDefinition, ScriptsConfig
+from multi_agent_vlm_orchestrator.models import (
+    ModelProfile,
+    ModelsConfig,
+    ScriptDefinition,
+    ScriptsConfig,
+    TaskMode,
+)
 
 
 class ModelRegistry:
@@ -25,6 +31,13 @@ class ModelRegistry:
         if missing:
             details = ", ".join(sorted(missing))
             raise ValueError(f"Scripts reference undefined preferred models: {details}")
+
+    def validate_task_mode(self, model_name: str, task_mode: TaskMode) -> None:
+        profile = self.get(model_name)
+        if not profile.capabilities.supports_mode(task_mode):
+            raise ValueError(
+                f"Model '{model_name}' does not support task mode '{task_mode.value}'"
+            )
 
 
 class ScriptRegistry:

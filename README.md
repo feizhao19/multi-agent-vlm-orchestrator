@@ -1,13 +1,13 @@
 # Multi-Agent VLM Orchestrator
 
-`multi-agent-vlm-orchestrator` is a multi-agent system for vision-language model evaluation and orchestration. A supervisor agent accepts a script request, routes it to the requested VLM worker agent, and returns the result through a consistent tool-based execution layer.
+`multi-agent-vlm-orchestrator` is a multi-agent system for multimodal model orchestration. A supervisor agent accepts a request, routes it to the requested worker model, and returns the result through a consistent tool-based execution layer.
 
 ## Overview
 
 - `1 Supervisor Agent`
-  Accepts `script_id`, `prompt`, and optional `model_name`, validates the request, and routes work to the correct VLM worker.
+  Accepts `script_id`, `prompt`, and optional `model_name`, validates the request, and routes work to the correct worker. The supervisor can be rule-based or a text-only LLM such as `qwen3`.
 - `N Worker Agents`
-  Each worker is bound to one unique VLM and runs inference through a backend adapter.
+  Each worker is bound to one unique model and runs inference through a backend adapter.
 - `Tool Layer`
   Provides reusable actions such as `list_models`, `list_scripts`, `run_experiment`, and `summarize_results`.
 - `Execution Layer`
@@ -27,7 +27,7 @@ This is the current routing contract:
 User Request
   -> Supervisor Agent
   -> Worker Selection
-  -> VLM Worker Agent
+  -> Model Worker Agent
   -> Hugging Face Backend
   -> Result Store
 ```
@@ -48,7 +48,7 @@ The planner is currently rule-based. The system is intentionally structured so t
 - `Python`
 - `Pydantic` for configs and structured request models
 - `Typer` for CLI entrypoints
-- `Hugging Face transformers` for local VLM inference
+- `Hugging Face transformers` for local LLM/VLM inference
 - `JSON` and `JSONL` for configs and run outputs
 - `Conda` metadata in model profiles for future per-model environment routing
 
@@ -59,6 +59,16 @@ Natural-language agent request:
 ```bash
 PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli agent \
   --request "run script 1 with qwen2-vl-2b on this prompt: describe the image" \
+  --models configs/models.json \
+  --scripts configs/scripts.json
+```
+
+Natural-language request with `qwen3` as supervisor:
+
+```bash
+PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli agent \
+  --request "run script 1 with qwen2-vl-2b on this prompt: describe the image" \
+  --supervisor-model qwen3-8b \
   --models configs/models.json \
   --scripts configs/scripts.json
 ```
@@ -116,7 +126,7 @@ uv sync --extra dev --extra local
 
 ## Config Files
 
-`configs/models.json` defines the available VLM worker profiles:
+`configs/models.json` defines the available worker and supervisor model profiles:
 
 ```json
 {

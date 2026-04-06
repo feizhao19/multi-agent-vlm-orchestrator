@@ -9,6 +9,7 @@ from multi_agent_vlm_orchestrator.models import (
     ModelsConfig,
     ScriptDefinition,
     ScriptsConfig,
+    TaskMode,
 )
 from multi_agent_vlm_orchestrator.orchestrator import ExperimentRunner
 from multi_agent_vlm_orchestrator.registry import ModelRegistry, ScriptRegistry
@@ -90,6 +91,41 @@ class OrchestratorTests(unittest.TestCase):
         results = runner.run()
 
         self.assertEqual(results[0].model_name, "override")
+
+    def test_runner_infers_vision_to_text_for_image_scripts(self) -> None:
+        tmp_path = Path("results/test_tmp")
+        tmp_path.mkdir(parents=True, exist_ok=True)
+        result_path = tmp_path / "vision_results.jsonl"
+
+        experiment = ExperimentConfig(
+            experiment=ExperimentInput(
+                name="vision-test",
+                prompt="what is in the image?",
+                output_path=str(result_path),
+            )
+        )
+        models = ModelsConfig(
+            models={"mock": ModelProfile(backend="mock", model_id="mock/model")}
+        )
+        scripts = ScriptsConfig(
+            scripts={
+                "script_001": ScriptDefinition(
+                    description="demo",
+                    preferred_model="mock",
+                    prompt_template="Answer this: {user_prompt}",
+                    image_path="examples/image.png",
+                )
+            }
+        )
+        runner = ExperimentRunner(
+            experiment_config=experiment,
+            model_registry=ModelRegistry(models),
+            script_registry=ScriptRegistry(scripts),
+        )
+
+        results = runner.run()
+
+        self.assertEqual(results[0].task_mode, TaskMode.VISION_TO_TEXT)
 
 
 if __name__ == "__main__":

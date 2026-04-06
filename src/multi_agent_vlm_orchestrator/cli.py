@@ -12,7 +12,7 @@ from multi_agent_vlm_orchestrator.config import (
     load_models_config,
     load_scripts_config,
 )
-from multi_agent_vlm_orchestrator.models import RunRequest
+from multi_agent_vlm_orchestrator.models import RunRequest, SupervisorConfig
 from multi_agent_vlm_orchestrator.orchestrator import ExperimentRunner
 from multi_agent_vlm_orchestrator.registry import ModelRegistry, ScriptRegistry
 
@@ -67,13 +67,20 @@ def agent_command(
     request: str = typer.Option(..., help="Natural-language request for the agent system."),
     models: Path = typer.Option(..., exists=True, dir_okay=False),
     scripts: Path = typer.Option(..., exists=True, dir_okay=False),
+    supervisor_model: Optional[str] = typer.Option(
+        None,
+        help="Optional text-only supervisor model, for example qwen3-8b.",
+    ),
     output_path: Path = typer.Option(
         Path("results/agent_latest.jsonl"),
         dir_okay=False,
         help="Default results file used by run and summarize tools.",
     ),
 ) -> None:
-    system = AgentSystem.from_paths(models, scripts, output_path)
+    supervisor = None
+    if supervisor_model is not None:
+        supervisor = SupervisorConfig(planner_type="llm", model_name=supervisor_model)
+    system = AgentSystem.from_paths(models, scripts, output_path, supervisor)
     response = system.handle(request)
     logger.info("Intent: %s", response.intent)
     logger.info(response.final_text)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from multi_agent_vlm_orchestrator.agents import SubAgent
 from multi_agent_vlm_orchestrator.clients import build_client
-from multi_agent_vlm_orchestrator.models import AgentResult, AgentTask, ExperimentConfig
+from multi_agent_vlm_orchestrator.models import AgentResult, AgentTask, ExperimentConfig, TaskMode
 from multi_agent_vlm_orchestrator.registry import ModelRegistry, ScriptRegistry
 
 logger = logging.getLogger(__name__)
@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 def _render_prompt(template: str, user_prompt: str) -> str:
     return template.format(user_prompt=user_prompt)
+
+
+def _infer_task_mode(image_path: Path | None) -> TaskMode:
+    if image_path is not None:
+        return TaskMode.VISION_TO_TEXT
+    return TaskMode.TEXT_ONLY
 
 
 class ExperimentRunner:
@@ -33,11 +39,13 @@ class ExperimentRunner:
         tasks: list[AgentTask] = []
         for script_id, script in scripts.items():
             model_name = experiment.model_name or script.preferred_model
+            image_path = Path(script.image_path) if script.image_path else None
             task = AgentTask(
                 script_id=script_id,
                 model_name=model_name,
                 prompt=_render_prompt(script.prompt_template, experiment.prompt),
-                image_path=Path(script.image_path) if script.image_path else None,
+                task_mode=experiment.task_mode or _infer_task_mode(image_path),
+                image_path=image_path,
                 description=script.description,
             )
             tasks.append(task)

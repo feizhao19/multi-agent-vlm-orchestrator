@@ -3,21 +3,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from multi_agent_vlm_orchestrator.clients import build_client
 from multi_agent_vlm_orchestrator.config import load_models_config, load_scripts_config
 from multi_agent_vlm_orchestrator.models import (
     AgentResponse,
     PlannerDecision,
     RunRequest,
+    SupervisorConfig,
+    TaskMode,
     ToolCall,
     ToolOutput,
 )
-from multi_agent_vlm_orchestrator.planner import RuleBasedPlanner
+from multi_agent_vlm_orchestrator.planner import BasePlanner, LLMSupervisorPlanner, RuleBasedPlanner
 from multi_agent_vlm_orchestrator.registry import ModelRegistry, ScriptRegistry
 from multi_agent_vlm_orchestrator.tools import ToolContext, ToolRegistry
 
 
 class IntentRouterAgent:
-    def __init__(self, planner: RuleBasedPlanner) -> None:
+    def __init__(self, planner: BasePlanner) -> None:
         self.planner = planner
 
     def route(self, request: str) -> PlannerDecision:
@@ -67,7 +70,10 @@ class ResponseAgent:
 
     def _render_output(self, output: ToolOutput) -> str:
         if output.tool_name == "list_models":
-            names = [item["name"] for item in output.content["models"]]
+            names = [
+                f"{item['name']}[{item['model_kind']}]"
+                for item in output.content["models"]
+            ]
             return f"Configured models: {', '.join(names)}."
         if output.tool_name == "list_scripts":
             scripts = [item["script_id"] for item in output.content["scripts"]]
@@ -105,6 +111,7 @@ class AgentSystem:
         models_path: Path,
         scripts_path: Path,
         default_output_path: Path = Path("results/agent_latest.jsonl"),
+        supervisor: SupervisorConfig | None = None,
     ) -> "AgentSystem":
         models_config = load_models_config(models_path)
         scripts_config = load_scripts_config(scripts_path)
@@ -116,8 +123,9 @@ class AgentSystem:
             script_registry=script_registry,
             default_output_path=default_output_path,
         )
+        planner = _build_planner(model_registry, supervisor)
         return cls(
-            router=IntentRouterAgent(RuleBasedPlanner()),
+            router=IntentRouterAgent(planner),
             execution_agent=ExecutionAgent(ToolRegistry(), context),
             response_agent=ResponseAgent(),
         )
@@ -139,6 +147,7 @@ class AgentSystem:
                         "prompt": request.prompt,
                         "script_ids": [request.script_id],
                         "model_name": request.model_name,
+                        "task_mode": (request.task_mode or self._infer_task_mode(request)).value,
                         "output_path": request.output_path,
                     },
                 )
@@ -150,3 +159,24 @@ class AgentSystem:
             decision,
             outputs,
         )
+
+    def _infer_task_mode(self, request: RunRequest) -> TaskMode:
+        if request.task_mode is not None:
+            return request.task_mode
+        if request.image_path is not None:
+            return TaskMode.VISION_TO_TEXT
+        return TaskMode.TEXT_ONLY
+
+
+def _build_planner(
+    model_registry: ModelRegistry,
+    supervisor: SupervisorConfig | None,
+) -> BasePlanner:
+    if supervisor is None or supervisor.planner_type == "rule_based":
+        return RuleBasedPlanner()
+    if supervisor.model_name is None:
+        raise ValueError("LLM supervisor requires a model_name")
+    profile = model_registry.get(supervisor.model_name)
+    if profile.model_kind.value != "llm":
+        raise ValueError(f"Supervisor model '{supervisor.model_name}' must be an llm")
+    return LLMSupervisorPlanner(build_client(profile), supervisor.model_name)

@@ -3,30 +3,101 @@
     "mock-vlm": {
       "provider": "huggingface",
       "backend": "mock",
+      "model_kind": "vlm",
       "model_id": "mock/mock-vlm",
       "conda_env": "vlm-mock",
       "device": "cpu",
       "dtype": "float32",
-      "max_new_tokens": 64
+      "max_new_tokens": 64,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": true,
+        "supports_text_output": true,
+        "supports_image_output": false
+      }
+    },
+    "mock-llm": {
+      "provider": "huggingface",
+      "backend": "mock",
+      "model_kind": "llm",
+      "model_id": "mock/mock-llm",
+      "conda_env": "llm-mock",
+      "device": "cpu",
+      "dtype": "float32",
+      "max_new_tokens": 64,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      }
+    },
+    "qwen3-8b": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "Qwen/Qwen3-8B",
+      "conda_env": "qwen3-supervisor",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "max_new_tokens": 1024,
+      "system_prompt": "You are a routing supervisor for a multimodal model orchestration system. Return strict JSON.",
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false,
+        "supports_tool_calling": true
+      }
+    },
+    "mock-unified": {
+      "provider": "huggingface",
+      "backend": "mock",
+      "model_kind": "unified",
+      "model_id": "mock/mock-unified",
+      "conda_env": "unified-mock",
+      "device": "cpu",
+      "dtype": "float32",
+      "max_new_tokens": 64,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": true,
+        "supports_text_output": true,
+        "supports_image_output": true
+      }
     },
     "qwen2-vl-2b": {
       "provider": "huggingface",
       "backend": "transformers_local",
+      "model_kind": "vlm",
       "model_id": "Qwen/Qwen2-VL-2B-Instruct",
       "conda_env": "vlm-qwen",
       "device": "cuda",
       "dtype": "bfloat16",
       "max_new_tokens": 256,
-      "system_prompt": "You are a careful vision-language evaluation assistant."
+      "system_prompt": "You are a careful vision-language evaluation assistant.",
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": true,
+        "supports_text_output": true,
+        "supports_image_output": false
+      }
     },
     "idefics2-8b": {
       "provider": "huggingface",
       "backend": "transformers_local",
+      "model_kind": "vlm",
       "model_id": "HuggingFaceM4/idefics2-8b",
       "conda_env": "vlm-idefics",
       "device": "cuda",
       "dtype": "bfloat16",
-      "max_new_tokens": 256
+      "max_new_tokens": 256,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": true,
+        "supports_text_output": true,
+        "supports_image_output": false
+      }
     }
   }
 }

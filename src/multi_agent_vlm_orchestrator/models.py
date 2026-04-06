@@ -12,9 +12,49 @@ class BackendType(str, Enum):
     TRANSFORMERS_LOCAL = "transformers_local"
 
 
+class ModelKind(str, Enum):
+    LLM = "llm"
+    VLM = "vlm"
+    UNIFIED = "unified"
+
+
+class TaskMode(str, Enum):
+    TEXT_ONLY = "text_only"
+    VISION_TO_TEXT = "vision_to_text"
+    TEXT_TO_IMAGE = "text_to_image"
+    IMAGE_TO_IMAGE = "image_to_image"
+    MULTIMODAL_CHAT = "multimodal_chat"
+
+
+class ModelCapabilities(BaseModel):
+    supports_text_input: bool = True
+    supports_image_input: bool = False
+    supports_text_output: bool = True
+    supports_image_output: bool = False
+    supports_tool_calling: bool = False
+
+    def supports_mode(self, mode: "TaskMode") -> bool:
+        if mode == TaskMode.TEXT_ONLY:
+            return self.supports_text_input and self.supports_text_output
+        if mode == TaskMode.VISION_TO_TEXT:
+            return self.supports_image_input and self.supports_text_output
+        if mode == TaskMode.TEXT_TO_IMAGE:
+            return self.supports_text_input and self.supports_image_output
+        if mode == TaskMode.IMAGE_TO_IMAGE:
+            return self.supports_image_input and self.supports_image_output
+        if mode == TaskMode.MULTIMODAL_CHAT:
+            return (
+                self.supports_text_input
+                and self.supports_image_input
+                and self.supports_text_output
+            )
+        return False
+
+
 class ModelProfile(BaseModel):
     provider: str = "huggingface"
     backend: BackendType
+    model_kind: ModelKind = ModelKind.VLM
     model_id: str
     device: str = "cpu"
     conda_env: str | None = None
@@ -23,6 +63,7 @@ class ModelProfile(BaseModel):
     system_prompt: str | None = None
     temperature: float = 0.0
     max_new_tokens: int = 256
+    capabilities: ModelCapabilities = Field(default_factory=ModelCapabilities)
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -39,6 +80,7 @@ class ExperimentInput(BaseModel):
     prompt: str
     script_ids: list[str] | None = None
     model_name: str | None = None
+    task_mode: TaskMode | None = None
     output_path: str = "results/latest_run.jsonl"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -59,6 +101,7 @@ class AgentTask(BaseModel):
     script_id: str
     model_name: str
     prompt: str
+    task_mode: TaskMode = TaskMode.TEXT_ONLY
     image_path: Path | None = None
     description: str
 
@@ -74,7 +117,9 @@ class AgentResult(BaseModel):
     model_name: str
     model_id: str
     backend: BackendType
+    task_mode: TaskMode
     response_text: str
+    response_image_path: str | None = None
     success: bool
     error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -99,6 +144,11 @@ class PlannerDecision(BaseModel):
     tool_calls: list[ToolCall] = Field(default_factory=list)
 
 
+class SupervisorConfig(BaseModel):
+    planner_type: Literal["rule_based", "llm"] = "rule_based"
+    model_name: str | None = None
+
+
 class AgentResponse(BaseModel):
     request: str
     intent: str
@@ -112,6 +162,7 @@ class RunRequest(BaseModel):
     prompt: str
     model_name: str | None = None
     image_path: str | None = None
+    task_mode: TaskMode | None = None
     run_name: str = "supervisor_run"
     output_path: str = "results/supervisor_run.jsonl"
     metadata: dict[str, Any] = Field(default_factory=dict)

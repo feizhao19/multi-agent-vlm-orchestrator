@@ -8,6 +8,7 @@ from typing import Callable
 from multi_agent_vlm_orchestrator.models import (
     ExperimentConfig,
     ExperimentInput,
+    TaskMode,
     ToolCall,
     ToolOutput,
 )
@@ -25,14 +26,38 @@ class ToolContext:
 ToolHandler = Callable[[ToolContext, dict], ToolOutput]
 
 
+TASK_MODE_ALIASES = {
+    "image_to_text": TaskMode.VISION_TO_TEXT,
+    "vision_to_text": TaskMode.VISION_TO_TEXT,
+    "text_to_text": TaskMode.TEXT_ONLY,
+    "text_only": TaskMode.TEXT_ONLY,
+    "text-to-image": TaskMode.TEXT_TO_IMAGE,
+    "image-to-image": TaskMode.IMAGE_TO_IMAGE,
+    "multimodal": TaskMode.MULTIMODAL_CHAT,
+}
+
+
+def _normalize_task_mode(value: str | None) -> TaskMode:
+    if value is None:
+        return TaskMode.TEXT_ONLY
+    if value in TaskMode._value2member_map_:
+        return TaskMode(value)
+    try:
+        return TASK_MODE_ALIASES[value.strip().lower()]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported task_mode '{value}'") from exc
+
+
 def _tool_list_models(context: ToolContext, arguments: dict) -> ToolOutput:
     models = [
         {
             "name": name,
             "model_id": profile.model_id,
             "backend": profile.backend.value,
+            "model_kind": profile.model_kind.value,
             "device": profile.device,
             "conda_env": profile.conda_env,
+            "capabilities": profile.capabilities.model_dump(),
         }
         for name, profile in sorted(context.model_registry.items())
     ]
@@ -58,11 +83,12 @@ def _tool_run_experiment(context: ToolContext, arguments: dict) -> ToolOutput:
     prompt = arguments["prompt"]
     script_ids = arguments.get("script_ids")
     model_name = arguments.get("model_name")
+    task_mode = _normalize_task_mode(arguments.get("task_mode"))
     output_path = Path(arguments.get("output_path", context.default_output_path))
     if model_name is not None:
         try:
-            context.model_registry.get(model_name)
-        except KeyError as exc:
+            context.model_registry.validate_task_mode(model_name, task_mode)
+        except (KeyError, ValueError) as exc:
             return ToolOutput(tool_name="run_experiment", success=False, error=str(exc))
     experiment = ExperimentConfig(
         experiment=ExperimentInput(
@@ -70,6 +96,7 @@ def _tool_run_experiment(context: ToolContext, arguments: dict) -> ToolOutput:
             prompt=prompt,
             script_ids=script_ids,
             model_name=model_name,
+            task_mode=task_mode,
             output_path=str(output_path),
             metadata={"request_source": "agent_system"},
         )
@@ -89,6 +116,7 @@ def _tool_run_experiment(context: ToolContext, arguments: dict) -> ToolOutput:
             "output_path": str(output_path),
             "requested_script_ids": script_ids,
             "requested_model_name": model_name,
+            "task_mode": task_mode.value,
             "total_results": len(results),
             "successes": successes,
             "failures": failures,
