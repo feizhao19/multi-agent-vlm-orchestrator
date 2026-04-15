@@ -1,0 +1,168 @@
+{
+  "models": {
+    "qwen3-8b": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "Qwen/Qwen3-8B",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      },
+      "extra": {
+        "use_chat_template": true,
+        "stream_output": true,
+        "stream_prefix": "[worker:qwen3-8b]",
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "generation_kwargs": {
+          "do_sample": false
+        }
+      }
+    },
+    "qwen3-14b": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "Qwen/Qwen3-14B",
+      "device": "cuda:0",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      },
+      "extra": {
+        "use_chat_template": true,
+        "stream_output": true,
+        "stream_prefix": "[worker:qwen3-14b]",
+        "model_kwargs": {
+          "device_map": "auto",
+          "low_cpu_mem_usage": true
+        },
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "generation_kwargs": {
+          "do_sample": false
+        }
+      }
+    },
+    "phi-4": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "microsoft/phi-4",
+      "device": "cuda:0",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      },
+      "extra": {
+        "use_chat_template": true,
+        "stream_output": true,
+        "stream_prefix": "[worker:phi-4]",
+        "model_kwargs": {
+          "device_map": "auto",
+          "low_cpu_mem_usage": true
+        },
+        "generation_kwargs": {
+          "do_sample": false
+        }
+      }
+    },
+    "gemma-3-12b-it": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "google/gemma-3-12b-it",
+      "device": "cuda:0",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      },
+      "extra": {
+        "use_chat_template": true,
+        "stream_output": true,
+        "stream_prefix": "[worker:gemma-3-12b-it]",
+        "model_kwargs": {
+          "device_map": "auto",
+          "low_cpu_mem_usage": true
+        },
+        "generation_kwargs": {
+          "do_sample": false
+        }
+      }
+    },
+    "gemma-4-31b-it": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "google/gemma-4-31B-it",
+      "device": "cuda:0",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      },
+      "extra": {
+        "use_chat_template": true,
+        "stream_output": true,
+        "stream_prefix": "[worker:gemma-4-31b-it]",
+        "model_kwargs": {
+          "device_map": "auto",
+          "low_cpu_mem_usage": true
+        },
+        "generation_kwargs": {
+          "do_sample": false
+        }
+      }
+    },
+    "glm-4-9b-chat": {
+      "provider": "huggingface",
+      "backend": "transformers_local",
+      "model_kind": "llm",
+      "model_id": "zai-org/glm-4-9b-chat-hf",
+      "device": "cuda:0",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "capabilities": {
+        "supports_text_input": true,
+        "supports_image_input": false,
+        "supports_text_output": true,
+        "supports_image_output": false
+      },
+      "extra": {
+        "use_chat_template": true,
+        "stream_output": true,
+        "stream_prefix": "[worker:glm-4-9b-chat]",
+        "model_kwargs": {
+          "device_map": "auto",
+          "low_cpu_mem_usage": true
+        },
+        "generation_kwargs": {
+          "do_sample": false
+        }
+      }
+    }
+  }
+}

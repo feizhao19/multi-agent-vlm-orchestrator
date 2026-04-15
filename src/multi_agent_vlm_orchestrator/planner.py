@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from textwrap import dedent
 
 from multi_agent_vlm_orchestrator.clients import ModelClient
 from multi_agent_vlm_orchestrator.models import AgentTask, PlannerDecision, TaskMode, ToolCall
 
+logger = logging.getLogger(__name__)
 
 SCRIPT_ID_PATTERN = re.compile(r"script[_\s-]?(\d+)", re.IGNORECASE)
 MODEL_PATTERN = re.compile(r"(?:with|use|using)\s+([a-zA-Z0-9._/-]+)")
@@ -102,6 +104,7 @@ class LLMSupervisorPlanner(BasePlanner):
         self.model_name = model_name
 
     def plan(self, request: str) -> PlannerDecision:
+        logger.info("Supervisor model %s planning request: %s", self.model_name, request)
         supervisor_prompt = dedent(
             f"""
             You are a routing supervisor.
@@ -141,6 +144,7 @@ class LLMSupervisorPlanner(BasePlanner):
             description="Supervisor planning request",
         )
         raw_text, _ = self.client.generate(task)
+        logger.info("Supervisor raw output from %s: %s", self.model_name, raw_text)
         return self._parse_decision(raw_text)
 
     def _parse_decision(self, raw_text: str) -> PlannerDecision:

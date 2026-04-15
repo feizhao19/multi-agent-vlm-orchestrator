@@ -138,28 +138,4 @@ uv sync --extra dev --extra local
       "conda_env": "vlm-qwen",
       "device": "cuda",
       "dtype": "bfloat16",
-      "max_new_tokens": 256
-    }
-  }
-}
-```
-
-`configs/scripts.json` maps scripts to their default model preferences:
-
-```json
-{
-  "scripts": {
-    "script_001": {
-      "description": "OCR and chart understanding",
-      "preferred_model": "qwen2-vl-2b",
-      "prompt_template": "Analyze the image and answer: {user_prompt}"
-    }
-  }
-}
-```
-
-## Testing
-
-```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -q
-```
+      "max_new_

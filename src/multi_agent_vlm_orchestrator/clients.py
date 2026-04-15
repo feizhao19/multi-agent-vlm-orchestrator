@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import logging
+import sys
 
 from multi_agent_vlm_orchestrator.models import AgentTask, BackendType, ModelProfile, TaskMode
 
@@ -47,6 +48,61 @@ class TransformersLocalModelClient(ModelClient):
     def _is_qwen2_vl(self) -> bool:
         return "qwen2-vl" in self.profile.model_id.lower()
 
+    def _tokenizer_kwargs(self) -> dict[str, Any]:
+        return dict(self.profile.extra.get("tokenizer_kwargs", {}))
+
+    def _model_kwargs(self, torch_dtype: Any) -> dict[str, Any]:
+        kwargs = dict(self.profile.extra.get("model_kwargs", {}))
+        kwargs.setdefault("torch_dtype", torch_dtype)
+        return kwargs
+
+    def _generation_kwargs(self) -> dict[str, Any]:
+        kwargs = dict(self.profile.extra.get("generation_kwargs", {}))
+        kwargs.setdefault("max_new_tokens", self.profile.max_new_tokens)
+        return kwargs
+
+    def _build_streamer(self) -> Any | None:
+        if not self.profile.extra.get("stream_output", False):
+            return None
+        if self._tokenizer is None:
+            return None
+        try:
+            from transformers import TextStreamer
+        except ImportError:
+            logger.warning("transformers TextStreamer is unavailable; disabling stream_output")
+            return None
+        return TextStreamer(
+            self._tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True,
+        )
+
+    def _prepare_llm_prompt(self, prompt_text: str) -> str:
+        use_chat_template = self.profile.extra.get("use_chat_template", True)
+        if not use_chat_template or self._tokenizer is None:
+            return prompt_text
+        if not hasattr(self._tokenizer, "apply_chat_template"):
+            return prompt_text
+
+        messages: list[dict[str, Any]] = []
+        if self.profile.system_prompt:
+            messages.append({"role": "system", "content": self.profile.system_prompt})
+        messages.append({"role": "user", "content": prompt_text})
+        chat_template_kwargs = dict(self.profile.extra.get("chat_template_kwargs", {}))
+        try:
+            return self._tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                **chat_template_kwargs,
+            )
+        except Exception:
+            logger.warning(
+                "Falling back to raw prompt because chat template rendering failed for %s",
+                self.profile.model_id,
+            )
+            return prompt_text
+
     def _lazy_load(self) -> None:
         if self._model is not None and (
             self.profile.model_kind.value == "llm"
@@ -78,12 +134,17 @@ class TransformersLocalModelClient(ModelClient):
             self._tokenizer = AutoTokenizer.from_pretrained(
                 self.profile.model_id,
                 revision=self.profile.revision,
+                **self._tokenizer_kwargs(),
             )
+            if self._tokenizer.pad_token is None and self._tokenizer.eos_token is not None:
+                self._tokenizer.pad_token = self._tokenizer.eos_token
             self._model = AutoModelForCausalLM.from_pretrained(
                 self.profile.model_id,
                 revision=self.profile.revision,
-                torch_dtype=torch_dtype,
-            ).to(self.profile.device)
+                **self._model_kwargs(torch_dtype),
+            )
+            if not hasattr(self._model, "hf_device_map"):
+                self._model = self._model.to(self.profile.device)
         else:
             if self._is_qwen2_vl():
                 try:
@@ -95,12 +156,15 @@ class TransformersLocalModelClient(ModelClient):
                 self._processor = AutoProcessor.from_pretrained(
                     self.profile.model_id,
                     revision=self.profile.revision,
+                    **self._tokenizer_kwargs(),
                 )
                 self._model = Qwen2VLForConditionalGeneration.from_pretrained(
                     self.profile.model_id,
                     revision=self.profile.revision,
-                    torch_dtype=torch_dtype,
-                ).to(self.profile.device)
+                    **self._model_kwargs(torch_dtype),
+                )
+                if not hasattr(self._model, "hf_device_map"):
+                    self._model = self._model.to(self.profile.device)
                 return
             try:
                 from transformers import AutoModelForVision2Seq, AutoProcessor
@@ -111,27 +175,41 @@ class TransformersLocalModelClient(ModelClient):
             self._processor = AutoProcessor.from_pretrained(
                 self.profile.model_id,
                 revision=self.profile.revision,
+                **self._tokenizer_kwargs(),
             )
             self._model = AutoModelForVision2Seq.from_pretrained(
                 self.profile.model_id,
                 revision=self.profile.revision,
-                torch_dtype=torch_dtype,
-            ).to(self.profile.device)
+                **self._model_kwargs(torch_dtype),
+            )
+            if not hasattr(self._model, "hf_device_map"):
+                self._model = self._model.to(self.profile.device)
 
     def generate(self, task: AgentTask) -> tuple[str, dict[str, Any]]:
         self._lazy_load()
         prompt_text = task.prompt
-        if self.profile.system_prompt:
+        if self.profile.system_prompt and self.profile.model_kind.value != "llm":
             prompt_text = f"{self.profile.system_prompt}\n\n{prompt_text}"
 
         if self.profile.model_kind.value == "llm":
             assert self._tokenizer is not None
-            inputs = self._tokenizer(prompt_text, return_tensors="pt")
+            prepared_prompt = self._prepare_llm_prompt(prompt_text)
+            inputs = self._tokenizer(prepared_prompt, return_tensors="pt", padding=True)
             inputs = {key: value.to(self.profile.device) for key, value in inputs.items()}
+            streamer = self._build_streamer()
+            generation_kwargs = self._generation_kwargs()
+            if streamer is not None:
+                prefix = self.profile.extra.get("stream_prefix")
+                if prefix:
+                    print(prefix, flush=True)
+                generation_kwargs["streamer"] = streamer
             output = self._model.generate(
                 **inputs,
-                max_new_tokens=self.profile.max_new_tokens,
+                **generation_kwargs,
             )
+            if streamer is not None:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
             prompt_length = inputs["input_ids"].shape[-1]
             generated = output[:, prompt_length:]
             text = self._tokenizer.batch_decode(generated, skip_special_tokens=True)[0]
@@ -139,6 +217,7 @@ class TransformersLocalModelClient(ModelClient):
                 "mode": "transformers_local",
                 "task_mode": task.task_mode.value,
                 "model_kind": self.profile.model_kind.value,
+                "chat_template_applied": self.profile.extra.get("use_chat_template", True),
             }
 
         if self._is_qwen2_vl():
@@ -169,7 +248,7 @@ class TransformersLocalModelClient(ModelClient):
             inputs = {key: value.to(self.profile.device) for key, value in inputs.items()}
             output = self._model.generate(
                 **inputs,
-                max_new_tokens=self.profile.max_new_tokens,
+                **self._generation_kwargs(),
             )
             generated_ids = [
                 output_ids[len(input_ids):]
@@ -212,7 +291,7 @@ class TransformersLocalModelClient(ModelClient):
         inputs = {key: value.to(self.profile.device) for key, value in inputs.items()}
         output = self._model.generate(
             **inputs,
-            max_new_tokens=self.profile.max_new_tokens,
+            **self._generation_kwargs(),
         )
         text = self._processor.batch_decode(output, skip_special_tokens=True)[0]
         return text, metadata
