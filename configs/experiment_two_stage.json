@@ -1,0 +1,24 @@
+{
+  "experiment": {
+    "name": "two_stage_face_avatar_smoke",
+    "prompt": "Given this face description and persona, answer the evaluation questions as JSON.",
+    "samples": [
+      {
+        "sample_id": "sample_001",
+        "persona_id": "persona_default",
+        "prompt": "Given this face description and persona, answer the evaluation questions as JSON.",
+        "metadata": {
+          "source": "smoke"
+        }
+      }
+    ],
+    "script_ids": ["script_001"],
+    "output_path": "results/two_stage_face_avatar_smoke.jsonl",
+    "image_output_dir": "results/generated_avatars",
+    "generator_model": "mock-image-generator",
+    "evaluator_model": "mock-vlm",
+    "metadata": {
+      "mode": "two_stage_smoke"
+    }
+  }
+}

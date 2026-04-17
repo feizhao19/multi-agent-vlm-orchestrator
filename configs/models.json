@@ -4,15 +4,63 @@
       "provider": "huggingface",
       "backend": "mock",
       "model_id": "mock/mock-vlm",
+      "capabilities": ["vision_to_text", "text_to_text"],
       "conda_env": "vlm-mock",
       "device": "cpu",
       "dtype": "float32",
       "max_new_tokens": 64
     },
+    "mock-image-generator": {
+      "provider": "local",
+      "backend": "mock",
+      "model_id": "mock/mock-image-generator",
+      "capabilities": ["text_to_image"],
+      "conda_env": "vlm-mock",
+      "device": "cpu",
+      "dtype": "float32",
+      "max_new_tokens": 64
+    },
+    "bagel-7b-mot": {
+      "provider": "huggingface",
+      "backend": "external_command",
+      "model_id": "ByteDance-Seed/BAGEL-7B-MoT",
+      "capabilities": ["text_to_image", "vision_to_text", "text_to_text"],
+      "conda_env": "bagel",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "max_new_tokens": 512,
+      "extra": {
+        "note": "Fill generate_image_command and generate_command with a local wrapper around the official BAGEL code before running this profile.",
+        "timeout_seconds": 1800,
+        "generate_image_command": [
+          "python",
+          "scripts/run_bagel.py",
+          "text-to-image",
+          "--model-id",
+          "{model_id}",
+          "--prompt",
+          "{prompt}",
+          "--output-path",
+          "{output_path}"
+        ],
+        "generate_command": [
+          "python",
+          "scripts/run_bagel.py",
+          "vision-to-text",
+          "--model-id",
+          "{model_id}",
+          "--image-path",
+          "{image_path}",
+          "--prompt",
+          "{prompt}"
+        ]
+      }
+    },
     "qwen2-vl-2b": {
       "provider": "huggingface",
       "backend": "transformers_local",
       "model_id": "Qwen/Qwen2-VL-2B-Instruct",
+      "capabilities": ["vision_to_text", "text_to_text"],
       "conda_env": "vlm-qwen",
       "device": "cuda",
       "dtype": "bfloat16",
@@ -23,6 +71,7 @@
       "provider": "huggingface",
       "backend": "transformers_local",
       "model_id": "HuggingFaceM4/idefics2-8b",
+      "capabilities": ["vision_to_text"],
       "conda_env": "vlm-idefics",
       "device": "cuda",
       "dtype": "bfloat16",

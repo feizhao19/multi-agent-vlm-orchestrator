@@ -50,10 +50,57 @@ PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli run \
   --scripts configs/scripts.json
 ```
 
+## Two-stage avatar baseline
+
+The single-stage `run` command is the Stage A baseline: render the configured prompt and
+send it directly to the selected model.
+
+Use `run-two-stage` for Stage B: render the same prompt, generate an avatar image, then
+send that generated image plus the same prompt to an evaluator VLM.
+
+```bash
+PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli run-two-stage \
+  --experiment configs/experiment_two_stage.json \
+  --models configs/models.json \
+  --scripts configs/scripts.json
+```
+
+Two-stage records are JSONL objects containing the baseline answer, image path and
+metadata, avatar-conditioned answer, failure reason, and elapsed time.
+
+`experiment.samples` lets you batch multiple face/persona prompts in one run. Generated
+avatars are written under:
+
+```text
+<image_output_dir>/<sample_id>/<generator_model>/<persona_id>/avatar.<ext>
+```
+
+Compare a Stage A result file with a Stage B result file:
+
+```bash
+PYTHONPATH=src python3 -m multi_agent_vlm_orchestrator.cli compare \
+  --baseline results/demo_run.jsonl \
+  --two-stage results/two_stage_face_avatar_smoke.jsonl \
+  --output results/two_stage_comparison.json
+```
+
+`configs/models.json` includes a `bagel-7b-mot` profile for
+`ByteDance-Seed/BAGEL-7B-MoT`. BAGEL is wired as `external_command` because its
+any-to-any inference path needs a local wrapper around the official code. Fill
+`extra.generate_image_command` and `extra.generate_command` before running it.
+The included `scripts/run_bagel.py` wrapper expects:
+
+```bash
+export BAGEL_REPO_PATH=/path/to/official/BAGEL
+export BAGEL_MODEL_PATH=/path/to/downloaded/BAGEL-7B-MoT
+```
+
 ## Backends
 
 - `mock`: dry-run backend for pipeline testing
 - `transformers_local`: local Hugging Face execution through `transformers`
+- `diffusers_local`: local text-to-image execution through `diffusers`
+- `external_command`: adapter for model-specific scripts such as BAGEL wrappers
 
 Install local inference dependencies when you need real VLM execution:
 

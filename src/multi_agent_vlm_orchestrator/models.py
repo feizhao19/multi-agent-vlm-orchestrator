@@ -10,12 +10,15 @@ from pydantic import BaseModel, Field, model_validator
 class BackendType(str, Enum):
     MOCK = "mock"
     TRANSFORMERS_LOCAL = "transformers_local"
+    DIFFUSERS_LOCAL = "diffusers_local"
+    EXTERNAL_COMMAND = "external_command"
 
 
 class ModelProfile(BaseModel):
     provider: str = "huggingface"
     backend: BackendType
     model_id: str
+    capabilities: list[str] = Field(default_factory=lambda: ["vision_to_text", "text_to_text"])
     device: str = "cpu"
     conda_env: str | None = None
     dtype: str = "float16"
@@ -34,11 +37,22 @@ class ScriptDefinition(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class ExperimentSample(BaseModel):
+    sample_id: str
+    prompt: str
+    persona_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class ExperimentInput(BaseModel):
     name: str
     prompt: str
+    samples: list[ExperimentSample] = Field(default_factory=list)
     script_ids: list[str] | None = None
     output_path: str = "results/latest_run.jsonl"
+    image_output_dir: str = "results/generated_images"
+    generator_model: str | None = None
+    evaluator_model: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -76,6 +90,33 @@ class AgentResult(BaseModel):
     response_text: str
     success: bool
     error: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ImageGenerationResult(BaseModel):
+    model_name: str
+    model_id: str
+    backend: BackendType
+    image_path: str | None = None
+    prompt: str
+    success: bool
+    error: str | None = None
+    elapsed_seconds: float
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TwoStageExperimentResult(BaseModel):
+    experiment_name: str
+    script_id: str
+    sample_id: str
+    persona_id: str | None = None
+    prompt: str
+    baseline: AgentResult | None = None
+    image_generation: ImageGenerationResult
+    avatar_answer: AgentResult | None = None
+    success: bool
+    error: str | None = None
+    elapsed_seconds: float
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
